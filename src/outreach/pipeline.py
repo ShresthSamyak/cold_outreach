@@ -20,6 +20,7 @@ from outreach.browser import session
 from outreach.campaign import Campaign, load_campaign
 from outreach.config import Config
 from outreach.contact import reveal_phone
+from outreach.discover import discover as discover_candidates
 from outreach.message import generate_message
 from outreach.scraper import scrape_profiles
 from outreach.sender import human_send_delay, send_whatsapp
@@ -27,6 +28,7 @@ from outreach.sender import human_send_delay, send_whatsapp
 
 @dataclass
 class RunStats:
+    discovered: int = 0
     scraped: int = 0
     contacts_found: int = 0
     contacts_missing: int = 0
@@ -38,9 +40,10 @@ class RunStats:
 
     def summary(self) -> str:
         return (
-            f"scraped={self.scraped}  contacts={self.contacts_found}/{self.scraped} "
-            f"(missing={self.contacts_missing})  drafted={self.messages_drafted}  "
-            f"sent={self.sent}  dry_run={self.dry_run}  skipped={self.skipped}  failed={self.failed}"
+            f"discovered={self.discovered}  scraped={self.scraped}  "
+            f"contacts={self.contacts_found}/{self.scraped} (missing={self.contacts_missing})  "
+            f"drafted={self.messages_drafted}  sent={self.sent}  dry_run={self.dry_run}  "
+            f"skipped={self.skipped}  failed={self.failed}"
         )
 
 
