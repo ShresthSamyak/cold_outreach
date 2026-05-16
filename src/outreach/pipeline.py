@@ -61,24 +61,34 @@ def _confirm(prompt: str) -> str:
 
 
 def run_pipeline(
-    urls: Iterable[str],
+    urls: Iterable[str] | None,
     campaign_name: str,
     *,
     auto_send: bool = False,
     real_send: bool = False,
+    discover_limit: int = 20,
+    query_override: str | None = None,
     cfg: Config | None = None,
 ) -> RunStats:
-    """Run the full pipeline against `urls` using `campaign_name`."""
+    """Run the full pipeline. If `urls` is empty/None, auto-discover from the campaign."""
     cfg = cfg or Config.load()
     campaign: Campaign = load_campaign(campaign_name)
     db.init_db()
 
-    url_list = [u.strip() for u in urls if u and u.strip()]
-    if not url_list:
-        typer.echo("No URLs to process.", err=True)
-        return RunStats()
-
     stats = RunStats()
+
+    url_list: list[str] = [u.strip() for u in (urls or []) if u and u.strip()]
+    if not url_list:
+        typer.echo(f"\n[0/5] Auto-discovering profiles for campaign '{campaign.name}'...")
+        query, candidates = discover_candidates(
+            campaign, limit=discover_limit, cfg=cfg, query_override=query_override
+        )
+        typer.echo(f"  query: {query.keywords!r}  -> {len(candidates)} candidates")
+        url_list = [c.url for c in candidates]
+        stats.discovered = len(url_list)
+        if not url_list:
+            typer.echo("Discovery returned 0 candidates. Refine the campaign audience or --query.")
+            return stats
 
     # Daily cap check (real sends only).
     if real_send:
@@ -90,7 +100,7 @@ def run_pipeline(
         typer.echo(f"Daily send cap: {already}/{cfg.daily_send_limit} used. {remaining} left for today.")
 
     # Step 1 — scrape all profiles up front (one Apify call is cheaper than many).
-    typer.echo(f"\n[1/5] Scraping {len(url_list)} profile(s) via Apify...")
+    typer.echo(f"\n[1/5] Scraping {len(url_list)} profile detail(s) via Apify...")
     profiles = scrape_profiles(url_list, cfg=cfg)
     stats.scraped = len(profiles)
     if not profiles:
