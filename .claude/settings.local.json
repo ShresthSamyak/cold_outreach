@@ -8,7 +8,8 @@
       "Read(//c/Users/HP/AppData/Local/Google/Chrome/User Data/**)",
       "Bash(uv venv *)",
       "Bash(uv sync *)",
-      "Bash(uv run *)"
+      "Bash(uv run *)",
+      "Bash(uv add *)"
     ]
   }
 }
