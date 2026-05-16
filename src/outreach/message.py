@@ -85,8 +85,8 @@ def generate_message(
     campaign: Campaign,
     cfg: Config | None = None,
     *,
-    temperature: float = 0.7,
-    max_output_tokens: int = 512,
+    temperature: float = 0.85,
+    max_output_tokens: int = 2048,
 ) -> str:
     """Generate one cold message. Returns just the message body — no preamble."""
     cfg = cfg or Config.load()
@@ -97,14 +97,20 @@ def generate_message(
         f"Write the message now."
     )
 
+    gen_config: dict = {
+        "system_instruction": _system_instruction(campaign),
+        "temperature": temperature,
+        "max_output_tokens": max_output_tokens,
+    }
+    # Gemini 2.5 models "think" by default and thinking tokens consume the output budget.
+    # For short outreach messages we want raw output, not extended reasoning.
+    if "2.5" in cfg.gemini_model or "3." in cfg.gemini_model:
+        gen_config["thinking_config"] = types.ThinkingConfig(thinking_budget=0)
+
     response = client.models.generate_content(
         model=cfg.gemini_model,
         contents=user_prompt,
-        config=types.GenerateContentConfig(
-            system_instruction=_system_instruction(campaign),
-            temperature=temperature,
-            max_output_tokens=max_output_tokens,
-        ),
+        config=types.GenerateContentConfig(**gen_config),
     )
 
     text = (response.text or "").strip()
