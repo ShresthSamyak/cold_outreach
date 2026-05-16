@@ -38,6 +38,51 @@ def campaigns_list() -> None:
         typer.echo(n)
 
 
+@app.command()
+def extract(
+    url: str = typer.Argument(..., help="A LinkedIn profile URL"),
+    debug: bool = typer.Option(False, "--debug", help="Dump DOM + screenshot at each stage"),
+) -> None:
+    """Module 2: extract a phone via ContactOut for one LinkedIn profile.
+
+    Close all Chrome windows before running. This launches your real Chrome
+    with the ContactOut extension and consumes one of your daily reveals.
+    """
+    from outreach.browser import session
+    from outreach.contact import reveal_phone
+
+    with session() as ctx:
+        result = reveal_phone(ctx, url, debug=debug)
+    console.print(f"[bold]{result.status.upper()}[/bold]  {result.linkedin_url}")
+    if result.phone:
+        console.print(f"phone: [green]{result.phone}[/green]")
+    if result.notes:
+        console.print(f"notes: {result.notes}")
+    if result.debug_artifacts:
+        console.print("debug artifacts:")
+        for a in result.debug_artifacts:
+            console.print(f"  {a}")
+
+
+@app.command("extract-inspect")
+def extract_inspect(
+    url: str = typer.Argument(..., help="A LinkedIn profile URL"),
+    wait: int = typer.Option(60, "--wait", help="Seconds to wait for manual inspection"),
+) -> None:
+    """First-time-only: open a profile, you click around in ContactOut, we dump DOM.
+
+    Run this once to capture what ContactOut's UI looks like on your machine,
+    so we can tune the selectors in contact.py if the defaults miss.
+    """
+    from outreach.browser import session
+    from outreach.contact import inspect_profile
+
+    with session() as ctx:
+        artifacts = inspect_profile(ctx, url, wait_seconds=wait)
+    for a in artifacts:
+        console.print(a)
+
+
 @campaigns_app.command("show")
 def campaigns_show(name: str) -> None:
     """Show resolved campaign config."""
