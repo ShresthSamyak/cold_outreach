@@ -1,0 +1,40 @@
+# Campaign: Summer 2026 internship at Big 4 + MBB
+# Targets: EY, Deloitte, KPMG, PwC, Accenture, Bain, McKinsey
+# Edit freely — discovery and message generation both read from this file.
+
+name: consulting-internship
+
+goal: >
+  Land a summer 2026 internship in technology / AI consulting at one of:
+  EY, Deloitte, KPMG, PwC, Accenture, Bain & Company, or McKinsey & Company.
+
+audience: >
+  People at EY, Deloitte, KPMG, PwC, Accenture, Bain, or McKinsey in India
+  (Delhi NCR / Gurgaon / Bengaluru / Mumbai) who can either hire a summer
+  intern directly or refer one. Prioritize: managers, senior managers,
+  directors, and partners in technology consulting / AI / data & analytics
+  practices. Also include campus recruiters and talent acquisition leads.
+  Bonus signal: anyone who recently posted about hiring, interns, AI
+  practice expansion, or campus drives.
+
+sender_bio: |
+  Samyak Shrestha. AI engineer + CS student at Thapar University.
+  - Published `LLM Diet` on PyPI (open-source LLM optimization library)
+  - Built end-to-end automation for Open Dental (dental practice software)
+  - Built GetHelpDesk (support workflow tool)
+  - Background in competitive boxing — comfortable with pressure and structured discipline
+  Strong in Python, LLMs, Playwright, end-to-end automation. Looking for a
+  technology / AI consulting internship for summer 2026.
+
+ask: >
+  Would you be open to a 15-minute call to see if there's a fit for a summer
+  2026 internship on your team — or could you point me to the right person?
+
+tone: >
+  Professional but human. These are senior consulting professionals — no
+  slang, no "hey", no emojis. Start with their first name. Reference their
+  firm + practice area specifically. One concrete reason you're reaching out
+  to THEM. 3-5 short sentences. Direct ask at the end. Avoid "I came across
+  your profile" — find a real hook from their headline or role.
+
+attach_resume: true

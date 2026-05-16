@@ -1,12 +1,27 @@
+# --- secrets / credentials (NEVER commit) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- personal data / generated artifacts ---
+data/
+!data/.gitkeep
+
+# --- python / tooling ---
 .venv/
 __pycache__/
 *.pyc
-.env
-data/outreach.db
-data/raw/
-data/resume.pdf
+*.pyo
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
 dist/
 build/
 *.egg-info/
+
+# --- IDE ---
+.vscode/
+.idea/
+*.swp
