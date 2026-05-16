@@ -10,6 +10,7 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "typer>=0.15.0",
     "rich>=13.9.0",
+    "pyyaml>=6.0.3",
 ]
 
 [project.scripts]

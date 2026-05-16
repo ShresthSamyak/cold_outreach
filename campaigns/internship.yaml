@@ -1,0 +1,28 @@
+# Campaign: AI/ML internship hunt
+# Edit this file freely. Each top-level key feeds the Gemini message prompt.
+
+name: internship
+goal: >
+  Land an AI/ML engineering internship at an early-stage AI startup.
+
+audience: >
+  Founders, CTOs, and founding engineers at AI startups (primarily Delhi NCR,
+  but anywhere in India is fine). Bias toward people who recently posted about
+  hiring, shipping, or being heads-down on a product.
+
+sender_bio: |
+  Samyak Shrestha. Boxer turned AI engineer. CS student at Thapar University.
+  - Published `LLM Diet` on PyPI (open-source LLM optimization)
+  - Built Open Dental automation tooling
+  - Built GetHelpDesk (support workflow tool)
+  Comfortable in Python, LLM tooling, Playwright, end-to-end agent systems.
+
+ask: >
+  Open to a 15-minute call to see if I'd be useful as an intern this summer?
+
+tone: >
+  Casual but respectful. Specific reference to their company / what they're
+  building. No corporate fluff, no "I came across your profile and was
+  impressed." 3-4 short sentences max. Sound like a real person, not a template.
+
+attach_resume: true

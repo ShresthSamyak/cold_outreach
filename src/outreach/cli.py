@@ -21,6 +21,34 @@ def ping() -> None:
     typer.echo(f"OK. actor={cfg.apify_actor} project={cfg.gcp_project} resume={cfg.resume_pdf}")
 
 
+campaigns_app = typer.Typer(help="Manage outreach campaigns.")
+app.add_typer(campaigns_app, name="campaigns")
+
+
+@campaigns_app.command("list")
+def campaigns_list() -> None:
+    """List available campaigns."""
+    from outreach.campaign import list_campaigns
+
+    names = list_campaigns()
+    if not names:
+        typer.echo("No campaigns found. Drop a YAML file in campaigns/.")
+        raise typer.Exit(code=1)
+    for n in names:
+        typer.echo(n)
+
+
+@campaigns_app.command("show")
+def campaigns_show(name: str) -> None:
+    """Show resolved campaign config."""
+    from outreach.campaign import load_campaign
+
+    c = load_campaign(name)
+    console.print(f"[bold]{c.name}[/bold]  (attach_resume={c.attach_resume})")
+    for label, val in (("Goal", c.goal), ("Audience", c.audience), ("Sender bio", c.sender_bio), ("Ask", c.ask), ("Tone", c.tone)):
+        console.print(f"\n[cyan]{label}[/cyan]\n{val}")
+
+
 @app.command()
 def scrape(
     urls: Optional[list[str]] = typer.Argument(None, help="LinkedIn profile URLs"),
