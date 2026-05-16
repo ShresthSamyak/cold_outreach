@@ -13,6 +13,71 @@ console = Console()
 
 
 @app.command()
+def run(
+    urls: Optional[list[str]] = typer.Argument(None, help="LinkedIn profile URLs"),
+    from_file: Optional[Path] = typer.Option(None, "--from-file", "-f", help="One URL per line"),
+    campaign: str = typer.Option("internship", "--campaign", "-c", help="Campaign name"),
+    auto_send: bool = typer.Option(False, "--auto-send", help="Skip the per-message preview prompt"),
+    send_for_real: bool = typer.Option(False, "--send", help="ACTUALLY send. Without this flag: dry-run only."),
+) -> None:
+    """End-to-end: scrape -> extract contact -> draft -> preview -> send -> log.
+
+    Default is dry-run with preview confirmation per message. Pass --send to
+    actually fire. Close all Chrome windows before running.
+    """
+    from outreach.pipeline import run_pipeline
+
+    all_urls: list[str] = list(urls or [])
+    if from_file:
+        all_urls += [line.strip() for line in from_file.read_text(encoding="utf-8").splitlines() if line.strip()]
+    if not all_urls:
+        typer.echo("Provide at least one URL (as args or via --from-file).", err=True)
+        raise typer.Exit(code=2)
+
+    run_pipeline(all_urls, campaign, auto_send=auto_send, real_send=send_for_real)
+
+
+@app.command()
+def status(limit: int = typer.Option(20, "--limit", "-n")) -> None:
+    """Show recent sends."""
+    from outreach import db
+    from outreach.config import Config
+
+    Config.load()  # ensure data dir exists
+    db.init_db()
+    rows = db.recent_sends(limit=limit)
+    if not rows:
+        typer.echo("No sends recorded yet.")
+        return
+    t = Table(title=f"Last {len(rows)} send(s)")
+    for col in ("sent_at", "status", "campaign", "name", "company", "phone", "followup_at"):
+        t.add_column(col, overflow="fold")
+    for r in rows:
+        t.add_row(r["sent_at"], r["status"], r["campaign"], r["name"] or "-", r["company"] or "-", r["phone"], r["followup_at"] or "-")
+    console.print(t)
+
+
+@app.command()
+def followups() -> None:
+    """Show follow-ups due today or earlier."""
+    from outreach import db
+    from outreach.config import Config
+
+    Config.load()
+    db.init_db()
+    rows = db.pending_followups()
+    if not rows:
+        typer.echo("No follow-ups due.")
+        return
+    t = Table(title=f"{len(rows)} follow-up(s) due")
+    for col in ("followup_at", "name", "company", "phone", "sent_at", "linkedin_url"):
+        t.add_column(col, overflow="fold")
+    for r in rows:
+        t.add_row(r["followup_at"], r["name"] or "-", r["company"] or "-", r["phone"], r["sent_at"], r["linkedin_url"])
+    console.print(t)
+
+
+@app.command()
 def ping() -> None:
     """Sanity check: confirms config loads."""
     from outreach.config import Config
