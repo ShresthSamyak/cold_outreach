@@ -9,7 +9,8 @@
       "Bash(uv venv *)",
       "Bash(uv sync *)",
       "Bash(uv run *)",
-      "Bash(uv add *)"
+      "Bash(uv add *)",
+      "Bash(uv remove *)"
     ]
   }
 }
