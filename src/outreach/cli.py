@@ -14,27 +14,64 @@ console = Console()
 
 @app.command()
 def run(
-    urls: Optional[list[str]] = typer.Argument(None, help="LinkedIn profile URLs"),
+    urls: Optional[list[str]] = typer.Argument(None, help="LinkedIn profile URLs (omit to auto-discover from campaign)"),
     from_file: Optional[Path] = typer.Option(None, "--from-file", "-f", help="One URL per line"),
     campaign: str = typer.Option("internship", "--campaign", "-c", help="Campaign name"),
+    limit: int = typer.Option(20, "--limit", "-n", help="Auto-discover: how many candidates to pull"),
+    query: Optional[str] = typer.Option(None, "--query", "-q", help="Override the Gemini-generated search query"),
     auto_send: bool = typer.Option(False, "--auto-send", help="Skip the per-message preview prompt"),
     send_for_real: bool = typer.Option(False, "--send", help="ACTUALLY send. Without this flag: dry-run only."),
 ) -> None:
-    """End-to-end: scrape -> extract contact -> draft -> preview -> send -> log.
+    """End-to-end: (auto-discover OR your URLs) -> scrape -> extract contact -> draft -> preview -> send -> log.
 
-    Default is dry-run with preview confirmation per message. Pass --send to
-    actually fire. Close all Chrome windows before running.
+    Default behavior: if you pass URLs (args or --from-file), use those. Otherwise
+    auto-discover via Gemini-refined LinkedIn search.
+
+    Dry-run with preview by default. Pass --send to fire for real.
+    Close all Chrome windows before running.
     """
     from outreach.pipeline import run_pipeline
 
-    all_urls: list[str] = list(urls or [])
+    explicit_urls: list[str] = list(urls or [])
     if from_file:
-        all_urls += [line.strip() for line in from_file.read_text(encoding="utf-8").splitlines() if line.strip()]
-    if not all_urls:
-        typer.echo("Provide at least one URL (as args or via --from-file).", err=True)
-        raise typer.Exit(code=2)
+        explicit_urls += [line.strip() for line in from_file.read_text(encoding="utf-8").splitlines() if line.strip()]
 
-    run_pipeline(all_urls, campaign, auto_send=auto_send, real_send=send_for_real)
+    run_pipeline(
+        urls=explicit_urls or None,
+        campaign_name=campaign,
+        auto_send=auto_send,
+        real_send=send_for_real,
+        discover_limit=limit,
+        query_override=query,
+    )
+
+
+@app.command()
+def discover(
+    campaign: str = typer.Option("internship", "--campaign", "-c"),
+    limit: int = typer.Option(20, "--limit", "-n"),
+    query: Optional[str] = typer.Option(None, "--query", "-q", help="Skip Gemini refinement, use this query directly"),
+) -> None:
+    """Module 0: ask Gemini to derive a LinkedIn search query from a campaign, then run it via Apify."""
+    from outreach.campaign import load_campaign
+    from outreach.discover import discover as do_discover
+
+    c = load_campaign(campaign)
+    q, candidates = do_discover(c, limit=limit, query_override=query)
+    console.print(f"[dim]query[/dim]: {q.keywords}")
+    if q.titles:
+        console.print(f"[dim]titles[/dim]: {', '.join(q.titles)}")
+    if q.location:
+        console.print(f"[dim]location[/dim]: {q.location}")
+    if q.rationale:
+        console.print(f"[dim]rationale[/dim]: {q.rationale}")
+    console.print()
+    t = Table(title=f"{len(candidates)} candidate(s)")
+    for col in ("name", "headline", "company", "location", "url"):
+        t.add_column(col, overflow="fold")
+    for c2 in candidates:
+        t.add_row(c2.name or "-", c2.headline or "-", c2.company or "-", c2.location or "-", c2.url)
+    console.print(t)
 
 
 @app.command()
