@@ -10,7 +10,6 @@ skipped — only do that once you've tuned the prompt and trust the output.
 
 from __future__ import annotations
 
-import sys
 from dataclasses import dataclass
 from typing import Iterable
 
@@ -22,7 +21,7 @@ from outreach.campaign import Campaign, load_campaign
 from outreach.config import Config
 from outreach.contact import reveal_phone
 from outreach.message import generate_message
-from outreach.scraper import Profile, scrape_profiles
+from outreach.scraper import scrape_profiles
 from outreach.sender import human_send_delay, send_whatsapp
 
 
