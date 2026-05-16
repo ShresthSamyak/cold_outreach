@@ -1,85 +1,125 @@
-"""Shared Playwright Chrome session.
+"""Chrome session via CDP attach — Browser-Use style.
 
-Both Module 2 (ContactOut extraction) and Module 4 (WhatsApp Web) drive the
-user's real Chrome — same user-data-dir, same extensions, same logged-in
-sessions. Chrome only allows one process per user-data-dir, so both modules
-must share a single browser context within a run.
+We never launch our own browser context that competes with the user's Chrome.
+Instead, Chrome runs ONCE with `--remote-debugging-port=9222` (auto-started
+on first run, or via `outreach launch-chrome`), and Playwright attaches over
+CDP. The user keeps using Chrome normally; we just open background tabs.
 
-Usage:
-
-    from outreach.browser import session
-
-    with session() as ctx:
-        page = ctx.new_page()
-        page.goto("https://www.linkedin.com/in/someone/")
-        ...
-
-The context manager handles startup, profile-lock detection, and clean
-shutdown.
+After the one-time launch, every subsequent `outreach run` just attaches —
+no closing Chrome, no profile-lock errors.
 """
 
 from __future__ import annotations
 
 import os
+import subprocess
+import time
+import urllib.request
 from contextlib import contextmanager
-from pathlib import Path
 from typing import Iterator
 
-from playwright.sync_api import BrowserContext, Error as PWError, sync_playwright
+from playwright.sync_api import BrowserContext, sync_playwright
 
 from outreach.config import Config
 
+CDP_PORT = 9222
+CDP_VERSION_URL = f"http://localhost:{CDP_PORT}/json/version"
 
-class ProfileLockedError(RuntimeError):
-    """Chrome user-data-dir is in use by another Chrome process."""
+
+def is_cdp_up(timeout: float = 1.0) -> bool:
+    """Return True if Chrome's remote-debugging port is responding."""
+    try:
+        with urllib.request.urlopen(CDP_VERSION_URL, timeout=timeout):
+            return True
+    except Exception:
+        return False
 
 
-def _is_lock_error(err: Exception) -> bool:
-    msg = str(err).lower()
-    return any(s in msg for s in ("singletonlock", "profile", "user data directory is already in use"))
+def _kill_chrome_processes() -> int:
+    """Force-kill any running chrome.exe processes (Windows). Returns count killed."""
+    if os.name != "nt":
+        # On non-Windows, leave to the user. We don't run there anyway.
+        return 0
+    try:
+        result = subprocess.run(
+            ["taskkill", "/F", "/IM", "chrome.exe", "/T"],
+            capture_output=True, text=True, timeout=10,
+        )
+        # taskkill returns 0 if it killed anything, 128 if no matching process.
+        if "SUCCESS" in (result.stdout or ""):
+            return result.stdout.count("SUCCESS")
+        return 0
+    except Exception:
+        return 0
+
+
+def launch_chrome_with_debug(cfg: Config | None = None, wait_seconds: int = 15) -> None:
+    """Spawn Chrome with the debug port enabled. Blocks until the port is up."""
+    cfg = cfg or Config.load()
+
+    if is_cdp_up():
+        print(f"[browser] CDP already up on :{CDP_PORT} — nothing to do.")
+        return
+
+    # Any running Chrome WITHOUT the debug port will swallow our launch
+    # ("Opening in existing browser session"). Kill them first.
+    killed = _kill_chrome_processes()
+    if killed:
+        print(f"[browser] terminated {killed} existing chrome.exe process(es)")
+        time.sleep(1.5)  # let Windows release file handles
+
+    chrome_exe = cfg.chrome_executable
+    if not chrome_exe or not os.path.exists(chrome_exe):
+        raise RuntimeError(
+            f"CHROME_EXECUTABLE not found at {chrome_exe!r}. "
+            f"Set the correct path in .env."
+        )
+
+    args = [
+        chrome_exe,
+        f"--remote-debugging-port={CDP_PORT}",
+        f"--user-data-dir={cfg.chrome_user_data_dir}",
+        f"--profile-directory={cfg.chrome_profile_directory}",
+        "--restore-last-session",  # bring his tabs back
+    ]
+    print(f"[browser] launching Chrome with --remote-debugging-port={CDP_PORT}...")
+    # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP so Chrome outlives us.
+    flags = 0
+    if os.name == "nt":
+        flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP  # type: ignore[attr-defined]
+    subprocess.Popen(args, creationflags=flags, close_fds=True)
+
+    deadline = time.time() + wait_seconds
+    while time.time() < deadline:
+        if is_cdp_up():
+            print("[browser] Chrome is up. Your tabs will restore. Agent attaching via CDP.")
+            return
+        time.sleep(0.5)
+    raise RuntimeError(
+        f"Chrome didn't open the debug port within {wait_seconds}s. "
+        f"Try `uv run outreach launch-chrome` manually."
+    )
 
 
 @contextmanager
-def session(cfg: Config | None = None, headless: bool = False) -> Iterator[BrowserContext]:
-    """Launch (or reuse) a persistent Chrome context against the user's real profile."""
+def session(cfg: Config | None = None) -> Iterator[BrowserContext]:
+    """Attach to Chrome via CDP. Auto-launches Chrome if not already running with the port."""
     cfg = cfg or Config.load()
 
-    user_data_dir = Path(cfg.chrome_user_data_dir)
-    if not user_data_dir.exists():
-        raise RuntimeError(f"CHROME_USER_DATA_DIR does not exist: {user_data_dir}")
-
-    launch_kwargs: dict = {
-        "user_data_dir": str(user_data_dir),
-        "headless": headless,
-        "args": [
-            f"--profile-directory={cfg.chrome_profile_directory}",
-            # Keep extensions enabled; ContactOut must be present.
-            "--disable-blink-features=AutomationControlled",
-        ],
-        "viewport": {"width": 1366, "height": 820},
-        "ignore_default_args": ["--enable-automation"],
-    }
-    if cfg.chrome_executable and os.path.exists(cfg.chrome_executable):
-        launch_kwargs["executable_path"] = cfg.chrome_executable
-    else:
-        # Fall back to Playwright's installed Chrome channel.
-        launch_kwargs["channel"] = "chrome"
+    if not is_cdp_up():
+        launch_chrome_with_debug(cfg)
 
     with sync_playwright() as p:
-        try:
-            ctx = p.chromium.launch_persistent_context(**launch_kwargs)
-        except PWError as e:
-            if _is_lock_error(e):
-                raise ProfileLockedError(
-                    "Chrome is already running with this profile. "
-                    "Close all Chrome windows and try again."
-                ) from e
-            raise
-
+        browser = p.chromium.connect_over_cdp(f"http://localhost:{CDP_PORT}")
+        # Use the default context — has the user's cookies, sessions, extensions.
+        if not browser.contexts:
+            ctx = browser.new_context()
+        else:
+            ctx = browser.contexts[0]
         try:
             yield ctx
         finally:
             try:
-                ctx.close()
+                browser.close()  # disconnect CDP, Chrome process keeps running
             except Exception:
                 pass
