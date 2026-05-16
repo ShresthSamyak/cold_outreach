@@ -27,8 +27,9 @@ def _opt(key: str, default: str = "") -> str:
 
 @dataclass(frozen=True)
 class Config:
-    apify_token: str
-    apify_actor: str
+    apify_token: str              # optional — pipeline no longer needs Apify
+    apify_actor: str              # optional
+    apify_search_actor: str       # optional
 
     gemini_api_key: str           # if set, use direct API-key auth
     gcp_project: str              # else fall back to Vertex AI auth
@@ -58,8 +59,9 @@ class Config:
                 "Need either GEMINI_API_KEY (direct API key) or GCP_PROJECT_ID (Vertex AI). Set one in .env."
             )
         return cls(
-            apify_token=_req("APIFY_TOKEN"),
-            apify_actor=_req("APIFY_LINKEDIN_ACTOR"),
+            apify_token=_opt("APIFY_TOKEN"),
+            apify_actor=_opt("APIFY_LINKEDIN_ACTOR"),
+            apify_search_actor=_opt("APIFY_LINKEDIN_SEARCH_ACTOR"),
             gemini_api_key=api_key,
             gcp_project=project,
             gcp_location=_opt("GCP_LOCATION", "us-central1"),

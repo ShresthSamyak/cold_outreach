@@ -50,27 +50,32 @@ def run(
 def discover(
     campaign: str = typer.Option("internship", "--campaign", "-c"),
     limit: int = typer.Option(20, "--limit", "-n"),
-    query: Optional[str] = typer.Option(None, "--query", "-q", help="Skip Gemini refinement, use this query directly"),
+    query: Optional[str] = typer.Option(None, "--query", "-q", help="Skip Gemini refinement"),
 ) -> None:
-    """Module 0: ask Gemini to derive a LinkedIn search query from a campaign, then run it via Apify."""
+    """Module 0: AI-driven LinkedIn search via your real Chrome. Lists URLs only — no sending."""
+    from outreach.browser import session
     from outreach.campaign import load_campaign
     from outreach.discover import discover as do_discover
 
     c = load_campaign(campaign)
-    q, candidates = do_discover(c, limit=limit, query_override=query)
-    console.print(f"[dim]query[/dim]: {q.keywords}")
+    with session() as ctx:
+        q, candidates = do_discover(c, limit=limit, ctx=ctx, query_override=query)
+
+    console.print(f"[dim]keywords [/dim]: {q.keywords}")
+    if q.companies:
+        console.print(f"[dim]companies[/dim]: {', '.join(q.companies)}")
     if q.titles:
-        console.print(f"[dim]titles[/dim]: {', '.join(q.titles)}")
+        console.print(f"[dim]titles   [/dim]: {', '.join(q.titles)}")
     if q.location:
-        console.print(f"[dim]location[/dim]: {q.location}")
+        console.print(f"[dim]location [/dim]: {q.location}")
     if q.rationale:
-        console.print(f"[dim]rationale[/dim]: {q.rationale}")
+        console.print(f"[dim]why      [/dim]: {q.rationale}")
     console.print()
-    t = Table(title=f"{len(candidates)} candidate(s)")
-    for col in ("name", "headline", "company", "location", "url"):
-        t.add_column(col, overflow="fold")
-    for c2 in candidates:
-        t.add_row(c2.name or "-", c2.headline or "-", c2.company or "-", c2.location or "-", c2.url)
+    t = Table(title=f"{len(candidates)} candidate URL(s)")
+    t.add_column("#", justify="right")
+    t.add_column("url", overflow="fold")
+    for i, c2 in enumerate(candidates, start=1):
+        t.add_row(str(i), c2.url)
     console.print(t)
 
 
@@ -264,33 +269,20 @@ def campaigns_show(name: str) -> None:
 
 @app.command()
 def scrape(
-    urls: Optional[list[str]] = typer.Argument(None, help="LinkedIn profile URLs"),
-    from_file: Optional[Path] = typer.Option(None, "--from-file", "-f", help="File with one URL per line"),
-    out: Optional[Path] = typer.Option(None, "--out", "-o", help="Write normalized profiles as JSON"),
+    url: str = typer.Argument(..., help="A LinkedIn profile URL"),
 ) -> None:
-    """Run Module 1: scrape LinkedIn profiles via Apify."""
-    from outreach.scraper import scrape_profiles
+    """Scrape one LinkedIn profile in your real Chrome and print the result."""
+    from outreach.browser import session
+    from outreach.scraper import scrape_profile
 
-    all_urls: list[str] = list(urls or [])
-    if from_file:
-        all_urls += [line.strip() for line in from_file.read_text(encoding="utf-8").splitlines() if line.strip()]
+    with session() as ctx:
+        p = scrape_profile(ctx, url)
 
-    if not all_urls:
-        typer.echo("Provide at least one URL (as args or via --from-file).", err=True)
-        raise typer.Exit(code=2)
-
-    profiles = scrape_profiles(all_urls)
-
-    table = Table(title=f"Scraped {len(profiles)} profile(s)")
-    for col in ("name", "role", "company", "location", "url"):
-        table.add_column(col, overflow="fold")
-    for p in profiles:
-        table.add_row(p.name or "-", p.role or "-", p.company or "-", p.location or "-", p.url)
-    console.print(table)
-
-    if out:
-        out.write_text(json.dumps([p.to_dict() for p in profiles], indent=2), encoding="utf-8")
-        typer.echo(f"Wrote {out}")
+    t = Table(title="profile")
+    t.add_column("field"); t.add_column("value", overflow="fold")
+    for k, v in p.to_dict().items():
+        t.add_row(k, str(v))
+    console.print(t)
 
 
 if __name__ == "__main__":
