@@ -30,7 +30,8 @@ class Config:
     apify_token: str
     apify_actor: str
 
-    gcp_project: str
+    gemini_api_key: str           # if set, use direct API-key auth
+    gcp_project: str              # else fall back to Vertex AI auth
     gcp_location: str
     gemini_model: str
     google_credentials: str
@@ -50,10 +51,17 @@ class Config:
     def load(cls) -> "Config":
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         RAW_DIR.mkdir(parents=True, exist_ok=True)
+        api_key = _opt("GEMINI_API_KEY")
+        project = _opt("GCP_PROJECT_ID")
+        if not api_key and not project:
+            raise RuntimeError(
+                "Need either GEMINI_API_KEY (direct API key) or GCP_PROJECT_ID (Vertex AI). Set one in .env."
+            )
         return cls(
             apify_token=_req("APIFY_TOKEN"),
             apify_actor=_req("APIFY_LINKEDIN_ACTOR"),
-            gcp_project=_req("GCP_PROJECT_ID"),
+            gemini_api_key=api_key,
+            gcp_project=project,
             gcp_location=_opt("GCP_LOCATION", "us-central1"),
             gemini_model=_opt("GEMINI_MODEL", "gemini-2.0-flash-001"),
             google_credentials=_opt("GOOGLE_APPLICATION_CREDENTIALS"),
