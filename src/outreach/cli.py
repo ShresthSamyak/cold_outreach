@@ -64,6 +64,31 @@ def extract(
             console.print(f"  {a}")
 
 
+@app.command()
+def draft(
+    campaign: str = typer.Option(..., "--campaign", "-c", help="Campaign name (file in campaigns/)"),
+    name: str = typer.Option(..., "--name", help="Recipient name"),
+    role: str = typer.Option("", "--role", help="Recipient role / title"),
+    company: str = typer.Option("", "--company", help="Recipient company"),
+    about: str = typer.Option("", "--about", help="Short about / summary"),
+    url: str = typer.Option("https://linkedin.com/in/test", "--url", help="Their LinkedIn URL"),
+) -> None:
+    """Module 3: generate a sample message against a synthetic profile.
+
+    Use this to sanity-check Gemini auth and prompt quality before doing a
+    full scrape. No Apify / Chrome needed.
+    """
+    from outreach.campaign import load_campaign
+    from outreach.message import generate_message
+    from outreach.scraper import Profile
+
+    c = load_campaign(campaign)
+    p = Profile(url=url, name=name, role=role, company=company, about=about)
+    msg = generate_message(p, c)
+    console.print(f"[dim]--- message ({len(msg)} chars) ---[/dim]")
+    console.print(msg)
+
+
 @app.command("extract-inspect")
 def extract_inspect(
     url: str = typer.Argument(..., help="A LinkedIn profile URL"),
