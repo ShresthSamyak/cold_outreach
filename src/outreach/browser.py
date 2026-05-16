@@ -141,7 +141,8 @@ def setup_wizard(cfg: Config | None = None) -> None:
     launch_sandbox(cfg, headless=False)
     time.sleep(2)
 
-    # Open the three setup pages in tabs so the user just walks through them.
+    # Open the LinkedIn + ContactOut setup pages in tabs. WhatsApp is NOT here —
+    # it goes through baileys (Node), not the browser.
     with sync_playwright() as p:
         browser = p.chromium.connect_over_cdp(f"http://localhost:{CDP_PORT}")
         ctx = browser.contexts[0] if browser.contexts else browser.new_context()
@@ -149,7 +150,6 @@ def setup_wizard(cfg: Config | None = None) -> None:
             ("https://chromewebstore.google.com/detail/contactout-find-any-email/jjdemeiffadmmjhkbbpglgnlgeafomjo",
              "ContactOut extension"),
             ("https://www.linkedin.com/login", "LinkedIn login"),
-            ("https://web.whatsapp.com/", "WhatsApp Web (scan QR)"),
         ):
             try:
                 page = ctx.new_page()
@@ -159,14 +159,28 @@ def setup_wizard(cfg: Config | None = None) -> None:
                 print(f"  [warn] couldn't open {label}: {e}")
         browser.close()
 
-    print("\nSteps to complete in the sandbox Chrome window now:")
+    print("\nIn the sandbox Chrome window that just opened:")
     print("  1. Install the ContactOut extension (Add to Chrome).")
     print("  2. Log into LinkedIn (your normal credentials).")
-    print("  3. Log into ContactOut (the extension's popup).")
-    print("  4. Scan the WhatsApp Web QR code with your phone.")
-    print("\nWhen all three are done, press Enter here to finish setup.")
+    print("  3. Log into ContactOut (its extension popup).")
+    print("\nWhen those three are done, press Enter to continue with WhatsApp setup.")
     try:
         input(">>> ")
     except EOFError:
         pass
-    print("\nSetup complete. From now on, `outreach run` will use this sandbox silently.")
+
+    # WhatsApp goes through baileys, not the browser. Run the QR flow here.
+    print("\nNow logging into WhatsApp via baileys (protocol-level, no browser).")
+    print("A QR code will appear in this terminal. Scan it from WhatsApp on your phone:")
+    print("  Phone -> WhatsApp -> Settings -> Linked Devices -> Link a Device\n")
+    try:
+        from outreach.sender import wa_login
+        rc = wa_login()
+        if rc == 0:
+            print("\n[OK] WhatsApp linked. Session is saved in wa-bridge/auth/.")
+        else:
+            print(f"\n[warn] WhatsApp login exited with code {rc}. Re-run `outreach wa-login` later.")
+    except Exception as e:
+        print(f"\n[warn] WhatsApp setup failed: {e}. Run `outreach wa-login` separately.")
+
+    print("\nSetup complete. From now on, `outreach run` works silently.")

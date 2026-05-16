@@ -178,7 +178,7 @@ def run_pipeline(
             attachment = cfg.resume_pdf if campaign.attach_resume else None
             typer.echo(f"  [send] {'REAL' if real_send else 'DRY-RUN'}...")
             result = send_whatsapp(
-                ctx, contact.phone, message, attachment,
+                contact.phone, message, attachment,
                 dry_run=not real_send, cfg=cfg,
             )
             db.insert_send(
