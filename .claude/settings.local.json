@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(where python *)",
+      "Bash(where node *)",
+      "Bash(where uv *)",
+      "Bash(where playwright *)",
+      "Read(//c/Users/HP/AppData/Local/Google/Chrome/User Data/**)",
+      "Bash(uv venv *)",
+      "Bash(uv sync *)"
+    ]
+  }
+}

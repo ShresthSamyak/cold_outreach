@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+data/outreach.db
+data/raw/
+data/resume.pdf
+.pytest_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
