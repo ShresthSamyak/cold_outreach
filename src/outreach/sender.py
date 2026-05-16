@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Literal
 from urllib.parse import quote
 
-from playwright.sync_api import BrowserContext, Page, TimeoutError as PWTimeout
+from playwright.sync_api import BrowserContext, Locator, Page, TimeoutError as PWTimeout
 
 from outreach.config import RAW_DIR, Config
 
@@ -131,7 +131,7 @@ def _wait_for_page_ready(page: Page, timeout_ms: int = 30_000) -> str:
     return "timeout"
 
 
-def _find_first_visible(page: Page, selectors: list[str], timeout_ms: int = 5000) -> object | None:
+def _find_first_visible(page: Page, selectors: list[str], timeout_ms: int = 5000) -> Locator | None:
     deadline = time.time() + timeout_ms / 1000
     while time.time() < deadline:
         for sel in selectors:
@@ -145,7 +145,7 @@ def _find_first_visible(page: Page, selectors: list[str], timeout_ms: int = 5000
     return None
 
 
-def _type_humanlike(loc, text: str) -> None:
+def _type_humanlike(loc: Locator, text: str) -> None:
     """Type with small randomized per-character delays."""
     for ch in text:
         loc.type(ch, delay=random.randint(20, 60))

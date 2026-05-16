@@ -89,6 +89,47 @@ def draft(
     console.print(msg)
 
 
+@app.command()
+def send(
+    phone: str = typer.Option(..., "--phone", help="Phone number (with or without +/country code)"),
+    message: str = typer.Option(..., "--message", "-m", help="Message body"),
+    attach: bool = typer.Option(True, "--attach/--no-attach", help="Attach resume PDF"),
+    send_for_real: bool = typer.Option(False, "--send", help="ACTUALLY click send. Without this flag, dry-run."),
+) -> None:
+    """Module 4: send (or dry-run) one WhatsApp message.
+
+    DRY-RUN by default — types the message, attaches resume, does NOT click send.
+    Pass --send to actually fire. Close all Chrome windows before running.
+    """
+    from outreach.browser import session
+    from outreach.config import Config
+    from outreach.sender import send_whatsapp
+
+    cfg = Config.load()
+    attachment = cfg.resume_pdf if attach else None
+    with session(cfg) as ctx:
+        result = send_whatsapp(ctx, phone, message, attachment, dry_run=not send_for_real, cfg=cfg)
+    console.print(f"[bold]{result.status.upper()}[/bold]  {result.phone}")
+    if result.notes:
+        console.print(f"notes: {result.notes}")
+    for a in result.debug_artifacts:
+        console.print(f"  {a}")
+
+
+@app.command("send-inspect")
+def send_inspect(
+    phone: str = typer.Option(..., "--phone"),
+    wait: int = typer.Option(60, "--wait"),
+) -> None:
+    """First-time-only: open a WA chat, you inspect DOM, we dump it for selector tuning."""
+    from outreach.browser import session
+    from outreach.sender import inspect_chat
+
+    with session() as ctx:
+        for a in inspect_chat(ctx, phone, wait_seconds=wait):
+            console.print(a)
+
+
 @app.command("extract-inspect")
 def extract_inspect(
     url: str = typer.Argument(..., help="A LinkedIn profile URL"),
