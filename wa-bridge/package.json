@@ -1,0 +1,16 @@
+{
+  "name": "wa-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "qr": "node index.js qr",
+    "status": "node index.js status"
+  },
+  "dependencies": {
+    "baileys": "^6.7.18",
+    "pino": "^9.5.0",
+    "qrcode-terminal": "^0.12.0"
+  }
+}

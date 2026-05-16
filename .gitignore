@@ -9,6 +9,11 @@
 data/
 !data/.gitkeep
 
+# --- wa-bridge: baileys session keys (NEVER commit) + node_modules ---
+wa-bridge/auth/
+wa-bridge/node_modules/
+wa-bridge/package-lock.json
+
 # --- python / tooling ---
 .venv/
 __pycache__/
