@@ -119,20 +119,12 @@ def followups() -> None:
     console.print(t)
 
 
-@app.command("launch-chrome")
-def launch_chrome_cmd() -> None:
-    """Start Chrome with the debug port enabled so the agent can attach to it.
+@app.command()
+def setup() -> None:
+    """One-time wizard: set up the dedicated automation Chrome (ContactOut + LinkedIn + WhatsApp)."""
+    from outreach.browser import setup_wizard
 
-    Kills any running Chrome first (with session restore so your tabs come back).
-    Run this once after each reboot — or just `outreach run` directly and it'll
-    auto-launch for you.
-    """
-    from outreach.browser import is_cdp_up, launch_chrome_with_debug
-
-    if is_cdp_up():
-        typer.echo("Chrome is already running with the debug port. Nothing to do.")
-        return
-    launch_chrome_with_debug()
+    setup_wizard()
 
 
 @app.command()
