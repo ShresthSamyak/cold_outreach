@@ -21,7 +21,8 @@ dist/
 build/
 *.egg-info/
 
-# --- IDE ---
+# --- IDE / tooling state ---
 .vscode/
 .idea/
 *.swp
+.claude/
