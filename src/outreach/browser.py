@@ -108,10 +108,47 @@ def launch_sandbox(cfg: Config | None = None, *, headless: bool = False, wait_se
     )
 
 
-@contextmanager
-def session(cfg: Config | None = None, *, headless: bool = False) -> Iterator[BrowserContext]:
-    """Attach to the sandbox Chrome via CDP. Launches it if not running."""
+def linkedin_cookies_present(cfg: Config | None = None) -> bool:
+    """Heuristic: does the sandbox profile have LinkedIn cookies persisted?
+
+    Looks for `li_at` (LinkedIn's main auth cookie) in the profile's Cookies DB.
+    """
     cfg = cfg or Config.load()
+    cookies_db = Path(cfg.chrome_user_data_dir) / cfg.chrome_profile_directory / "Network" / "Cookies"
+    if not cookies_db.exists():
+        return False
+    try:
+        import sqlite3
+        # The DB is locked while Chrome is running — copy first.
+        import shutil
+        import tempfile
+        tmp = Path(tempfile.gettempdir()) / "outreach-cookies-probe.db"
+        shutil.copy(cookies_db, tmp)
+        with sqlite3.connect(str(tmp)) as conn:
+            row = conn.execute(
+                "SELECT 1 FROM cookies WHERE host_key LIKE '%linkedin.com%' AND name='li_at' LIMIT 1"
+            ).fetchone()
+        return row is not None
+    except Exception:
+        return False
+
+
+@contextmanager
+def session(cfg: Config | None = None, *, headless: bool = True) -> Iterator[BrowserContext]:
+    """Attach to the sandbox Chrome via CDP. Launches it headless if not running.
+
+    Headless by default — Samyak should see only terminal output, never a
+    browser window. The setup wizard is the ONE exception (headless=False).
+    """
+    cfg = cfg or Config.load()
+
+    if not is_cdp_up() and not linkedin_cookies_present(cfg):
+        raise RuntimeError(
+            "Sandbox Chrome has no LinkedIn session yet.\n"
+            "Run `uv run outreach setup` ONCE to log into LinkedIn + ContactOut.\n"
+            "After that, every run is silent (headless background) — you never see a browser again."
+        )
+
     launch_sandbox(cfg, headless=headless)
     with sync_playwright() as p:
         browser = p.chromium.connect_over_cdp(f"http://localhost:{CDP_PORT}")

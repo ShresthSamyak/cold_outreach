@@ -79,26 +79,22 @@ def run_pipeline(
 
     url_list: list[str] = [u.strip() for u in (urls or []) if u and u.strip()]
 
-    typer.echo(f"\n[opening Chrome with your logged-in profile + ContactOut + WhatsApp Web...]")
-    with session(cfg) as ctx:
-
-        # ---- Module 0: discover (skipped if user passed explicit URLs) ----
+    # ---- Module 0: discovery via Gemini google_search (no browser needed) ----
+    if not url_list:
+        typer.echo(f"\n[0/4] Gemini searching the web for candidate LinkedIn profiles...")
+        query, candidates = discover_candidates(
+            campaign, limit=discover_limit, cfg=cfg, query_override=query_override
+        )
+        typer.echo(f"  {query.keywords}")
+        typer.echo(f"  found {len(candidates)} candidate profile URL(s)")
+        url_list = [c.url for c in candidates]
+        stats.discovered = len(url_list)
         if not url_list:
-            typer.echo(f"\n[0/4] AI-driven discovery for campaign '{campaign.name}'...")
-            query, candidates = discover_candidates(
-                campaign, limit=discover_limit, cfg=cfg, ctx=ctx, query_override=query_override
-            )
-            typer.echo(f"  search keywords : {query.keywords}")
-            if query.companies:
-                typer.echo(f"  companies       : {', '.join(query.companies)}")
-            if query.titles:
-                typer.echo(f"  titles          : {', '.join(query.titles)}")
-            typer.echo(f"  found {len(candidates)} candidate profile URL(s)")
-            url_list = [c.url for c in candidates]
-            stats.discovered = len(url_list)
-            if not url_list:
-                typer.echo("Discovery returned 0 candidates. Refine campaign audience.")
-                return stats
+            typer.echo("Discovery returned 0 candidates. Refine campaign audience.")
+            return stats
+
+    typer.echo(f"\n[opening headless Chrome sandbox for ContactOut...]")
+    with session(cfg) as ctx:
 
         # Daily cap check (real sends only).
         if real_send:
